@@ -375,11 +375,11 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
     // If no input, return 0%
     if (state.userInput.length === 0) return 0;
     
-    // Use state.errors for accuracy calculation (more reliable)
+    // Calculate accuracy based on correct vs total characters typed
     const totalTyped = state.userInput.length;
     const errors = state.errors.length;
     const correctChars = totalTyped - errors;
-    const accuracy = (correctChars / totalTyped) * 100;
+    const accuracy = totalTyped > 0 ? (correctChars / totalTyped) * 100 : 0;
     
     // Ensure accuracy is between 0 and 100
     return Math.max(0, Math.min(100, Math.round(accuracy)));
@@ -423,19 +423,30 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
         : 0;
     // --- END OF FIX ---
 
-    // Now use this reliable, real-time value for the WPM calculation
+    // Calculate WPM more accurately
     const currentWpm = finalTimeElapsedSeconds > 0 && state.userInput.length > 0 
         ? Math.round((state.userInput.length / 5) / (finalTimeElapsedSeconds / 60)) 
         : 0;
     
-    const currentAccuracy = calculateAccuracy();
-    const currentWordsTyped = Math.max(0, Math.round(state.userInput.length / 5));
+    // Calculate accuracy based on current input and errors
+    const totalTyped = state.userInput.length;
+    const errors = state.errors.length;
+    const correctChars = totalTyped - errors;
+    const currentAccuracy = totalTyped > 0 ? Math.round((correctChars / totalTyped) * 100) : 0;
+    
+    // Calculate actual words typed (split by spaces and filter empty)
+    const actualWords = state.userInput.trim().split(/\s+/).filter(word => word.length > 0);
+    const currentWordsTyped = actualWords.length;
+    
     const currentHandDistribution = calculateHandDistribution(state.userInput);
     
     console.log('📊 CAPTURED FINAL STATS:');
     console.log('⏰ Final Time (sec):', finalTimeElapsedSeconds); // Debugging line
     console.log('⚡ WPM:', currentWpm);
     console.log('🎯 Accuracy:', currentAccuracy);
+    console.log('📝 Input length:', state.userInput.length);
+    console.log('❌ Errors:', state.errors.length);
+    console.log('📖 Words typed:', currentWordsTyped);
 
     // Store captured stats in ref for immediate access
     const capturedStats = {
@@ -681,11 +692,12 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
         <div className={`transition-all duration-300 ${isStarted && !isCompleted && isPaused ? 'blur-sm opacity-50' : ''}`}>
            <TypingStats 
             stats={{
-              // Calculate live stats during typing
-              wpm: timeElapsed > 0 && state.userInput.length > 0 ? 
-                Math.round((state.userInput.length / 5) / (timeElapsed / 60)) : 0,
-              accuracy: calculateAccuracy(),
-              wordsTyped: state.userInput.length > 0 ? Math.round(state.userInput.length / 5) : 0,
+             // Calculate live stats during typing with better accuracy
+             wpm: timeElapsed > 0 && state.userInput.length > 0 ? 
+               Math.round((state.userInput.length / 5) / (timeElapsed / 60)) : 0,
+             accuracy: calculateAccuracy(),
+             wordsTyped: state.userInput.trim().length > 0 ? 
+               state.userInput.trim().split(/\s+/).filter(word => word.length > 0).length : 0,
               timeElapsed: timeElapsed,
               totalCharacters: state.userInput.length,
               correctCharacters: state.userInput.length - state.errors.length,
