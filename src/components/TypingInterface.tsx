@@ -268,7 +268,6 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
       // Track every keystroke
       setTotalKeysPressed(prev => {
         const newTotal = prev + 1;
-        console.log('🔢 Total keys pressed:', newTotal);
         return newTotal;
       });
       
@@ -279,11 +278,8 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
       if (!isCorrectChar) {
         setTotalErrors(prev => {
           const newErrors = prev + 1;
-          console.log('❌ Total errors:', newErrors);
           return newErrors;
         });
-      } else {
-        console.log('✅ Correct character typed');
       }
       
       if (soundEnabled) {
@@ -296,7 +292,11 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
         dispatch({ type: 'ADD_ERROR', payload: state.userInput.length });
       }
       
+      // Only finish when the ENTIRE text is completed
       if (newInput.length === state.practiceText.length) {
+        console.log('🏁 Test completed - full text typed!');
+        console.log('📝 Final input:', `"${newInput}"`);
+        console.log('📋 Target text:', `"${state.practiceText}"`);
         finishTyping();
       }
     }
@@ -316,33 +316,26 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
   const calculateHandDistribution = (input: string) => {
     if (input.length === 0) return { left: 0, right: 0 };
     
-    // Complete QWERTY keyboard hand mapping based on standard touch typing
+    // QWERTY keyboard hand mapping for standard touch typing
     const leftHandKeys = new Set([
-      // Letters typed with left hand
       'q', 'w', 'e', 'r', 't',
       'a', 's', 'd', 'f', 'g', 
       'z', 'x', 'c', 'v', 'b',
-      // Numbers typed with left hand
       '1', '2', '3', '4', '5',
-      // Special characters typically typed with left hand
       '!', '@', '#', '$', '%',
-      '`', '~'
+      '`', '~', '\t'
     ]);
     
     const rightHandKeys = new Set([
-      // Letters typed with right hand  
       'y', 'u', 'i', 'o', 'p',
       'h', 'j', 'k', 'l', ';', '\'',
       'n', 'm', ',', '.', '/',
-      // Numbers typed with right hand
       '6', '7', '8', '9', '0',
-      // Special characters typically typed with right hand
       '^', '&', '*', '(', ')', '-', '_', '=', '+',
       '[', ']', '{', '}', '\\', '|', 
-      ':', '"', '<', '>', '?'
+      ':', '"', '<', '>', '?', ' '  // Space bar with right thumb
     ]);
     
-    // Space bar is typically pressed with right thumb in standard touch typing
     let leftCount = 0;
     let rightCount = 0;
     
@@ -351,23 +344,16 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
         leftCount++;
       } else if (rightHandKeys.has(char)) {
         rightCount++;
-      } else if (char === ' ') {
-        // Space bar is typically pressed with right thumb
-        rightCount++;
       }
-      // Characters not in either set (like special unicode chars) are ignored
+      // Ignore characters not in either set
     }
     
     const totalCounted = leftCount + rightCount;
-    
     if (totalCounted === 0) return { left: 0, right: 0 };
     
-    const leftPercentage = (leftCount / totalCounted) * 100;
-    const rightPercentage = (rightCount / totalCounted) * 100;
-    
     return {
-      left: Math.round(leftPercentage),
-      right: Math.round(rightPercentage)
+      left: Math.round((leftCount / totalCounted) * 100),
+      right: Math.round((rightCount / totalCounted) * 100)
     };
   };
 
@@ -415,16 +401,14 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
     }
     setIsStarted(false);
 
-    // --- START OF FIX ---
-    // Calculate the final time directly, DO NOT use the timeElapsed state
+    // Calculate the final time directly
     const finishTime = new Date();
     const finalTimeElapsedSeconds = startTime 
-        ? (finishTime.getTime() - startTime.getTime()) / 1000 
-        : 0;
-    // --- END OF FIX ---
+        ? Math.max(1, (finishTime.getTime() - startTime.getTime()) / 1000)  // Minimum 1 second
+        : 1;
 
     // Calculate WPM more accurately
-    const currentWpm = finalTimeElapsedSeconds > 0 && state.userInput.length > 0 
+    const currentWpm = state.userInput.length > 0 
         ? Math.round((state.userInput.length / 5) / (finalTimeElapsedSeconds / 60)) 
         : 0;
     
@@ -432,21 +416,24 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
     const totalTyped = state.userInput.length;
     const errors = state.errors.length;
     const correctChars = totalTyped - errors;
-    const currentAccuracy = totalTyped > 0 ? Math.round((correctChars / totalTyped) * 100) : 0;
+    const currentAccuracy = totalTyped > 0 ? Math.round((correctChars / totalTyped) * 100) : 100;
     
     // Calculate actual words typed (split by spaces and filter empty)
-    const actualWords = state.userInput.trim().split(/\s+/).filter(word => word.length > 0);
-    const currentWordsTyped = actualWords.length;
+    const currentWordsTyped = state.userInput.trim().length > 0 
+        ? state.userInput.trim().split(/\s+/).filter(word => word.length > 0).length 
+        : 0;
     
     const currentHandDistribution = calculateHandDistribution(state.userInput);
     
     console.log('📊 CAPTURED FINAL STATS:');
-    console.log('⏰ Final Time (sec):', finalTimeElapsedSeconds); // Debugging line
+    console.log('⏰ Final Time (sec):', finalTimeElapsedSeconds);
+    console.log('📝 User input:', `"${state.userInput}"`);
+    console.log('📏 Input length:', state.userInput.length);
     console.log('⚡ WPM:', currentWpm);
     console.log('🎯 Accuracy:', currentAccuracy);
-    console.log('📝 Input length:', state.userInput.length);
     console.log('❌ Errors:', state.errors.length);
     console.log('📖 Words typed:', currentWordsTyped);
+    console.log('👐 Hand distribution:', currentHandDistribution);
 
     // Store captured stats in ref for immediate access
     const capturedStats = {
@@ -692,17 +679,16 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
         <div className={`transition-all duration-300 ${isStarted && !isCompleted && isPaused ? 'blur-sm opacity-50' : ''}`}>
            <TypingStats 
             stats={{
-             // Calculate live stats during typing with better accuracy
              wpm: timeElapsed > 0 && state.userInput.length > 0 ? 
-               Math.round((state.userInput.length / 5) / (timeElapsed / 60)) : 0,
+               Math.round((state.userInput.length / 5) / Math.max(timeElapsed / 60, 0.01)) : 0,
              accuracy: calculateAccuracy(),
              wordsTyped: state.userInput.trim().length > 0 ? 
                state.userInput.trim().split(/\s+/).filter(word => word.length > 0).length : 0,
               timeElapsed: timeElapsed,
               totalCharacters: state.userInput.length,
               correctCharacters: state.userInput.length - state.errors.length,
-              leftHandPercentage: calculateHandDistribution(state.userInput).left,
-              rightHandPercentage: calculateHandDistribution(state.userInput).right,
+              leftHandPercentage: handDistribution.left,
+              rightHandPercentage: handDistribution.right,
               performanceHistory: performanceHistory,
             }}
           timeRemaining={mode === 'timed' ? timeRemaining : undefined}
