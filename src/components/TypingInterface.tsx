@@ -342,32 +342,28 @@ export function TypingInterface({ mode = 'standard', topic = 'general', customTe
       ':', '"', '<', '>', '?'
     ]);
     
-    // Space bar is typically pressed with either thumb, so we'll count it as neutral
+    // Space bar is typically pressed with right thumb in standard touch typing
     let leftCount = 0;
     let rightCount = 0;
-    let spaceCount = 0;
     
     for (const char of input.toLowerCase()) {
-      if (char === ' ') {
-        spaceCount++;
-      } else if (leftHandKeys.has(char)) {
+      if (leftHandKeys.has(char)) {
         leftCount++;
       } else if (rightHandKeys.has(char)) {
+        rightCount++;
+      } else if (char === ' ') {
+        // Space bar is typically pressed with right thumb
         rightCount++;
       }
       // Characters not in either set (like special unicode chars) are ignored
     }
     
-    // Distribute spaces evenly between hands
-    const halfSpaces = spaceCount / 2;
-    const totalLeft = leftCount + halfSpaces;
-    const totalRight = rightCount + halfSpaces;
-    const totalCounted = totalLeft + totalRight;
+    const totalCounted = leftCount + rightCount;
     
     if (totalCounted === 0) return { left: 0, right: 0 };
     
-    const leftPercentage = (totalLeft / totalCounted) * 100;
-    const rightPercentage = (totalRight / totalCounted) * 100;
+    const leftPercentage = (leftCount / totalCounted) * 100;
+    const rightPercentage = (rightCount / totalCounted) * 100;
     
     return {
       left: Math.round(leftPercentage),
